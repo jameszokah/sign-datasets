@@ -24,6 +24,11 @@ keypoint files for each frame.
 
 _DOWNLOAD_URL = "https://zenodo.org/records/4533753/files/GSL_openpose_data.zip?download=1"
 
+BASE_DIR = Path(__file__).parent
+
+_POSE_HEADERS = {
+    "openpose": str(BASE_DIR / "openpose.poseheader"),
+}
 
 class Builder(tfds.core.GeneratorBasedBuilder):
     """DatasetBuilder for GSL OpenPose dataset (GHSL)."""
@@ -112,5 +117,5 @@ class Builder(tfds.core.GeneratorBasedBuilder):
                     "conf": pose_conf,
                 },
                 "gloss": label,
-                "text": "",
+                "text": label,
             }
