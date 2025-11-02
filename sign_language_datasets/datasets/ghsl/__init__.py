@@ -1,6 +1,6 @@
 """ghsl dataset."""
 
-from .ghsl_dataset_builder import Builder
+from .ghsl_dataset_builder import Builder, _POSE_HEADERS
 
 
 __all__ = ["Builder"]
