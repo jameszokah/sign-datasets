@@ -26,6 +26,33 @@ from tqdm import tqdm
 LEXICON_INDEX = ['path', 'spoken_language', 'signed_language', 'start', 'end', 'words', 'glosses', 'priority']
 
 
+# --- monkeypatch Pose.write to check header.dimensions.depth (works for your installed pose-format) ---
+from pose_format import Pose as _Pose_orig, PoseHeader
+from typing import BinaryIO
+
+def _patched_write(self, buffer: BinaryIO):
+    # same prechecks as original, but compare against header.dimensions.depth
+    if len(self.body.data.shape) != 4:
+        raise ValueError(f"Body data should have 4 dimensions, not {len(self.body.data.shape)}")
+
+    header_depth = getattr(self.header.dimensions, "depth", None)
+    body_depth = self.body.data.shape[-1]
+
+    # if header_depth is not set, fall back to num_dims() for backward compat
+    if header_depth is None:
+        header_depth = self.header.num_dims()
+
+    if header_depth != body_depth:
+        raise ValueError(f"Header depth (dimensions.depth) is {header_depth}, but body has {body_depth}")
+
+    self.header.write(buffer)
+    self.body.write(self.header.version, buffer)
+
+# apply monkeypatch
+_Pose_orig.write = _patched_write
+# --- end monkeypatch ---
+
+
 def init_index(index_path: str):
     if not os.path.isfile(index_path):
         os.makedirs(os.path.dirname(index_path) or ".", exist_ok=True)
@@ -106,7 +133,7 @@ def load_ghsl(out_dir: str, include_video: bool = False, include_pose: str = "op
                 # no pose available; skip or yield an entry with empty path
                 continue
 
-            fps = int(tf_pose["fps"].numpy())
+            fps = int(datum.get('fps', None))
             if fps == 0:
                 continue
 
@@ -127,13 +154,13 @@ def load_ghsl(out_dir: str, include_video: bool = False, include_pose: str = "op
 
             yield {
                 "path": pose_rel_path,
-                "spoken_language": "",     # filled later / by caller default
+                "spoken_language": "en",     # filled later / by caller default
                 "signed_language": signed_language,
                 "start": "0",
-                "end": str(duration),
+                "end": str(int(duration)),
                 "words": words,
                 "glosses": gloss or "",
-                "priority": "",
+                "priority": "1",
             }
 
 
